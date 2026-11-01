@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Железнодорожный Перегон 3D — Ларёк и Новые Поезда</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #60a5fa;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            user-select: none;
+        }
+
+        #blocker {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            z-index: 100;
+        }
+        .menu-card {
+            background: rgba(30, 41, 59, 0.96);
+            border: 2px solid #38bdf8;
+            border-radius: 16px;
+            padding: 26px 40px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            max-width: 720px;
+        }
+        .menu-card h1 { font-size: 26px; color: #38bdf8; margin-bottom: 10px; }
+
+        .train-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 12px 0;
+        }
+        .train-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 2px solid #475569;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .train-btn:hover { border-color: #38bdf8; color: #fff; }
+        .train-btn.active {
+            background: #0284c7;
+            border-color: #38bdf8;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+        }
+
+        .controls-list {
+            margin: 10px 0;
+            background: rgba(15, 23, 42, 0.7);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: left;
+            line-height: 1.7;
+            color: #e2e8f0;
+        }
+        .btn-start {
+            margin-top: 8px;
+            padding: 12px 42px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            color: #fff;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            transition: transform 0.15s;
+        }
+        .btn-start:hover { transform: scale(1.05); }
+
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: #fff;
+            z-index: 10;
+            font-size: 14px;
+            line-height: 1.6;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 14px 20px;
+            border-radius: 10px;
+            border-left: 5px solid #0284c7;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        #zpr-counter {
+            font-size: 18px;
+            color: #facc15;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(250, 204, 21, 0.6);
+        }
+        #departure-timer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #facc15;
+            color: #facc15;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        #location-hud {
+            position: absolute;
+            top: 75px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #38bdf8;
+            color: #38bdf8;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        #shop-modal {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #f59e0b;
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            display: none;
+            z-index: 20;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.5);
+        }
+        #gopro-overlay {
+            position: absolute;
+            inset: 0;
+            border: 18px solid rgba(0, 0, 0, 0.25);
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+        }
+        #gopro-rec {
+            position: absolute;
+            top: 25px;
+            left: 360px;
+            color: #ef4444;
+            font-size: 20px;
+            font-weight: bold;
+            font-family: monospace;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        #action-prompt {
+            position: absolute;
+            bottom: 22%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.94);
+            color: #facc15;
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-size: 20px;
+            font-weight: bold;
+            display: none;
+            border: 2px solid #facc15;
+            z-index: 10;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            pointer-events: none;
+        }
+        #warning-wind {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #dc2626;
+            color: #fff;
+            padding: 10px 26px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 25px rgba(220, 38, 38, 0.8);
+        }
+        #restart-hint {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #475569;
+            color: #94a3b8;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 10;
+        }
+        #item-alert {
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #4ade80;
+            display: none;
+            z-index: 30;
+        }
+    </style>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="blocker">
+        <div class="menu-card">
+            <h1>ЖЕЛЕЗНОДОРОЖНЫЙ ПЕРЕГОН 3D</h1>
+            <div style="font-size: 13px; color: #94a3b8; margin-bottom: 4px;">ВЫБЕРИТЕ СОСТАВ:</div>
+            <div class="train-options">
+                <button class="train-btn active" data-type="sapsan">🚄 Сапсан (220 км/ч)</button>
+                <button class="train-btn" data-type="ivolga">⚡ Иволга (150 км/ч)</button>
+                <button class="train-btn" data-type="lastochka">🔴 Ласточка (160 км/ч)</button>
+                <button class="train-btn" data-type="ep2d">🟡 ЭП2Д (125 км/ч)</button>
+                <button class="train-btn" data-type="freight">🚂 Тепловоз 2ТЭ116</button>
+            </div>
+
+            <div class="controls-list">
+                🏪 <b>ЛАРЁК НА СТАНЦИИ:</b> Подходите к ларьку для покупки снаряжения:<br>
+                &bull; <b>[F] 🌶️ Перцовка (300 ЗПР)</b> — усиливает хватку против ураганного ветра.<br>
+                &bull; <b>[G] 📹 Камера GoPro (150 ЗПР)</b> — режим съемки экшн-камеры и x2.5 к доходу ЗПР!<br>
+                🧗 <b>ЛАЗАНИЕ:</b> На стенке и крыше ползайте на <b>W, A, S, D</b> в любую сторону.<br>
+                🏃 <b>Shift</b> — Спринт | <b>Пробел</b> — Прыжок / Держаться | <b>V</b> — 1-е/3-е лицо | <b>R</b> — Рестарт
+            </div>
+            <button class="btn-start" id="start-btn">ВЫЙТИ НА ПЛАТФОРМУ</button>
+        </div>
+    </div>
+
+    <!-- Режим GoPro -->
+    <div id="gopro-overlay">
+        <div id="gopro-rec">🔴 REC 4K 60FPS [GOPRO HERO]</div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="action-prompt">[E] ЗАЦЕПИТЬСЯ</div>
+    <div id="warning-wind">⚠️ СИЛЬНЫЙ ВЕТЕР! ДЕРЖИТЕ ПРОБЕЛ! ⚠️</div>
+    <div id="departure-timer">⏰ ДО ОТПРАВЛЕНИЯ: <span id="timer-sec">12</span> с</div>
+    <div id="location-hud">📍 СТАНЦИЯ: ВОКЗАЛ ЦЕНТРАЛЬНЫЙ</div>
+    <div id="restart-hint">🔄 <b>[R]</b> — Начать заново</div>
+    <div id="item-alert">КУПЛЕНО!</div>
+
+    <!-- Меню ларька -->
+    <div id="shop-modal">
+        🏪 <b>ЛАРЁК 24/7 НА ПЕРРОНЕ:</b><br>
+        <span style="color:#f87171;">[F] 🌶️ Перцовка (300 ЗПР)</span> &bull; 
+        <span style="color:#38bdf8;">[G] 📹 Камера GoPro (150 ЗПР)</span>
+    </div>
+
+    <div id="hud">
+        <div id="zpr-counter">💰 ЗПР: <span id="ui-zpr">0</span></div>
+        <div id="inv-badges" style="font-size:12px; margin-top:3px; color:#a7f3d0;"></div>
+        <div style="margin-top:5px;">ПОЕЗД: <b id="ui-train-name" style="color: #38bdf8;">Сапсан (ЭВС2)</b></div>
+        <div>СТАТУС: <b id="ui-status" style="color: #4ade80;">СТОИТ НА ПУТЯХ</b></div>
+        <div>ВИД: <b id="ui-camera" style="color: #facc15;">1-е лицо [V]</b></div>
+        <div>СКОРОСТЬ: <b id="ui-speed" style="font-size: 17px;">0</b> км/ч</div>
+        <div>ХВАТКА: <b id="ui-grip" style="color: #22c55e;">100%</b></div>
+    </div>
+
+<script>
+// --- ПРОЦЕДУРНЫЕ ТЕКСТУРЫ ---
+function createGrassTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 7000; i++) {
+        const x = Math.random() * 512, y = Math.random() * 512;
+        ctx.fillStyle = ['#388e3c', '#43a047', '#4caf50', '#1b5e20', '#81c784'][Math.floor(Math.random() * 5)];
+        ctx.fillRect(x, y, 2.5, 3.5);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(25, 250);
+    return tex;
+}
+
+function createKioskSignTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(0, 0, 512, 128);
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 504, 120);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 50px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('КИОСК 24/7', 256, 64);
+    return new THREE.CanvasTexture(c);
+}
+
+function createSapsanLogoTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#0f2e5a'; ctx.fillRect(0, 0, 512, 128);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 52px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('С А П С А Н', 256, 55);
+    ctx.fillStyle = '#e11d48'; ctx.fillRect(40, 95, 432, 12);
+    return new THREE.CanvasTexture(c);
+}
+
+function createCoinTexture() {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(64, 64, 60, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 6; ctx.strokeStyle = '#fef08a'; ctx.stroke();
+    ctx.fillStyle = '#78350f'; ctx.font = 'bold 44px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('ЗПР', 64, 66);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- СЦЕНА И СВЕТ ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7dc2f5);
+scene.fog = new THREE.FogExp2(0xa5d5f8, 0.0014);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3500);
+scene.add(camera);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+document.body.appendChild(renderer.domElement);
+
+const sun = new THREE.DirectionalLight(0xfffbeb, 2.5);
+sun.position.set(120, 200, 70);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+const d = 130;
+sun.shadow.camera.left = -d; sun.shadow.camera.right = d;
+sun.shadow.camera.top = d; sun.shadow.camera.bottom = -d;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x87ceeb, 0x388e3c, 0.85));
+
+// --- РУКИ ОТ 1-ГО ЛИЦА С ПЕРЧАТКАМИ ---
+const fpsArmsGroup = new THREE.Group();
+camera.add(fpsArmsGroup);
+
+const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 });
+const gloveBaseMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4 });
+const gloveGripMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.6 });
+
+function createArm(isLeft = true) {
+    const arm = new THREE.Group();
+    const sign = isLeft ? -1 : 1;
+
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.42), sleeveMat);
+    sleeve.rotation.x = Math.PI / 2.4;
+    sleeve.position.set(0, -0.05, 0.15);
+    arm.add(sleeve);
+
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.16), gloveBaseMat);
+    palm.position.set(0, 0.02, -0.12);
+    arm.add(palm);
+
+    const knucklePad = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.05), gloveGripMat);
+    knucklePad.position.set(0, 0.055, -0.11);
+    arm.add(knucklePad);
+
+    const fingers = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.08), gloveBaseMat);
+    fingers.rotation.x = 0.4;
+    fingers.position.set(0, -0.01, -0.22);
+    arm.add(fingers);
+
+    arm.position.set(sign * 0.24, -0.25, -0.45);
+    return arm;
+}
+
+const leftFpsArm = createArm(true);
+const rightFpsArm = createArm(false);
+fpsArmsGroup.add(leftFpsArm);
+fpsArmsGroup.add(rightFpsArm);
+
+// --- КАРТА (8500 МЕТРОВ) ---
+const MAP_LENGTH = 8500;
+const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(600, MAP_LENGTH),
+    new THREE.MeshStandardMaterial({ map: createGrassTexture(), roughness: 0.9 })
+);
+ground.rotation.x = -Math.PI / 2; ground.position.z = -MAP_LENGTH / 2 + 200; ground.receiveShadow = true;
+scene.add(ground);
+
+const gravel = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.35, MAP_LENGTH), new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.95 }));
+gravel.position.set(0, 0.15, -MAP_LENGTH / 2 + 200); gravel.receiveShadow = true; scene.add(gravel);
+
+for (let rx of [-1.15, 1.15]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, MAP_LENGTH), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 }));
+    rail.position.set(rx, 0.45, -MAP_LENGTH / 2 + 200); rail.castShadow = true; scene.add(rail);
+}
+
+const tieMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.7 });
+for (let z = -MAP_LENGTH + 200; z <= 250; z += 2.4) {
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.22, 0.38), tieMat);
+    tie.position.set(0, 0.22, z); tie.receiveShadow = true; scene.add(tie);
+}
+
+// Мост через реку
+const river = new THREE.Mesh(new THREE.PlaneGeometry(600, 1400), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1, metalness: 0.8 }));
+river.rotation.x = -Math.PI / 2; river.position.set(0, -3.5, -2500); scene.add(river);
+
+for (let z = -1800; z >= -3200; z -= 70) {
+    for (let x of [-4.2, 4.2]) {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.45, 9, 0.45), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+        pillar.position.set(x, 4.5, z); scene.add(pillar);
+    }
+    const arch = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.45, 0.45), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+    arch.position.set(0, 9, z); scene.add(arch);
+}
+
+// --- СЕТЬ СТАНЦИЙ ВДОЛЬ ПУТИ ---
+const stations = [
+    { name: "ВОКЗАЛ ЦЕНТРАЛЬНЫЙ", z: -30, len: 280 },
+    { name: "ПЛАТФОРМА РЕЧНАЯ", z: -1600, len: 200 },
+    { name: "РАЗЪЕЗД ГОРНЫЙ", z: -4200, len: 200 },
+    { name: "ТЕРМИНАЛ ДАЛЬНИЙ", z: -7800, len: 240 }
+];
+
+stations.forEach((st) => {
+    // Перрон
+    const plat = new THREE.Mesh(new THREE.BoxGeometry(8, 1.4, st.len), new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5 }));
+    plat.position.set(7.5, 0.7, st.z); plat.receiveShadow = true; scene.add(plat);
+
+    const yL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.42, st.len), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+    yL.position.set(3.6, 0.71, st.z); scene.add(yL);
+
+    // Столбы с освещением станции
+    for (let lz = st.z + st.len/2 - 20; lz >= st.z - st.len/2 + 20; lz -= 50) {
+        const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 6), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+        lamp.position.set(9.5, 3, lz); scene.add(lamp);
+    }
+});
+
+// --- ЛАРЁК 24/7 НА СТАРТОВОМ ПЕРРОНЕ ---
+const kioskGroup = new THREE.Group();
+const kioskBody = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3.2, 4.2), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 }));
+kioskBody.position.y = 1.6; kioskGroup.add(kioskBody);
+
+// Полосатый навес ларька
+const kioskCanopy = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.25, 4.6), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+kioskCanopy.position.set(0, 3.2, 0); kioskGroup.add(kioskCanopy);
+
+// Витрина
+const kioskGlass = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.6, 3.0), new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.1, metalness: 0.8 }));
+kioskGlass.position.set(-1.81, 1.8, 0); kioskGroup.add(kioskGlass);
+
+// Светящаяся вывеска ларька
+const kioskSign = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 3.2), new THREE.MeshBasicMaterial({ map: createKioskSignTexture() }));
+kioskSign.position.set(-1.85, 3.0, 0); kioskGroup.add(kioskSign);
+
+kioskGroup.position.set(8.5, 1.4, 25);
+scene.add(kioskGroup);
+
+// --- ВАЛЮТА И ИНВЕНТАРЬ ---
+let zprScore = 0;
+let zprPassiveTimer = 0;
+let hasPepperspray = false;
+let hasGoPro = false;
+
+const coinsList = [];
+const coinTex = createCoinTexture();
+const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 20);
+const coinMat = new THREE.MeshStandardMaterial({ map: coinTex, metalness: 0.8, roughness: 0.2 });
+
+function spawnCoin(x, y, z) {
+    const coin = new THREE.Mesh(coinGeo, coinMat);
+    coin.rotation.x = Math.PI / 2;
+    coin.position.set(x, y, z);
+    scene.add(coin);
+    coinsList.push(coin);
+}
+
+for (let z = 50; z >= -120; z -= 15) spawnCoin(5.5, 1.8, z); // Перрон
+for (let z = 10; z >= -60; z -= 10) spawnCoin(0, 5.3, z);   // Крыша
+for (let z = -1850; z >= -3150; z -= 65) spawnCoin((Math.random() > 0.5 ? 2.5 : -2.5), 2.2, z); // Мост
+
+function showItemAlert(text) {
+    const a = document.getElementById('item-alert');
+    a.innerText = text;
+    a.style.display = 'block';
+    setTimeout(() => { a.style.display = 'none'; }, 1200);
+}
+
+// --- РАЗУКРАШЕННЫЕ ПОЕЗДА (5 ВИДОВ) ---
+const train = new THREE.Group();
+scene.add(train);
+
+let trainColliders = [];
+let selectedTrainType = 'sapsan';
+let trainMaxSpeed = 220;
+let trainAccel = 0.08;
+
+function buildTrainModel(type) {
+    while (train.children.length > 0) train.remove(train.children[0]);
+    trainColliders = [];
+
+    if (type === 'sapsan') {
+        trainMaxSpeed = 220; trainAccel = 0.08;
+        document.getElementById('ui-train-name').innerText = "Сапсан (ЭВС2)";
+        document.getElementById('ui-train-name').style.color = "#38bdf8";
+
+        const sWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.15, metalness: 0.1 });
+        const sBlue = new THREE.MeshStandardMaterial({ color: 0x0f2e5a, roughness: 0.2 });
+        const sRed = new THREE.MeshStandardMaterial({ color: 0xd92638, roughness: 0.3 });
+        const sDoor = new THREE.MeshStandardMaterial({ color: 0xfacc15 });
+        const logoTex = createSapsanLogoTexture();
+        const logoMat = new THREE.MeshBasicMaterial({ map: logoTex });
+
+        for (let i = 0; i < 3; i++) {
+            const isTail = (i === 0);
+            const car = new THREE.Group();
+            const carZ = - (i * 27.5);
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.3, 3.8, isTail ? 24 : 26), sWhite);
+            body.position.y = 2.8; body.castShadow = true; car.add(body);
+
+            for (let side of [-1.67, 1.67]) {
+                const bStripe = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, isTail ? 22 : 26), sBlue);
+                bStripe.position.set(side, 3.2, 0); car.add(bStripe);
+
+                const logoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.1, 4.8), logoMat);
+                logoMesh.position.set(side * 1.01, 3.2, 0);
+                if (side < 0) logoMesh.rotation.y = Math.PI;
+                car.add(logoMesh);
+
+                const rStripe = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.25, isTail ? 23 : 26), sRed);
+                rStripe.position.set(side, 1.4, 0); car.add(rStripe);
+
+                const door = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 1.4), sDoor);
+                door.position.set(side, 2.4, -6); car.add(door);
+            }
+
+            const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.68, 1.68, isTail ? 24 : 26, 20, 1, false, 0, Math.PI), sWhite);
+            roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2; roof.position.y = 4.7; car.add(roof);
+
+            if (isTail) {
+                const beakGroup = new THREE.Group();
+                const upperBeak = new THREE.Mesh(new THREE.ConeGeometry(1.68, 8.5, 20, 1, true, 0, Math.PI), sWhite);
+                upperBeak.rotation.z = Math.PI / 2; upperBeak.rotation.y = Math.PI / 2; upperBeak.rotation.x = 0.32;
+                upperBeak.scale.set(1.15, 0.85, 1.4); upperBeak.position.set(0, 3.2, 14.2);
+                beakGroup.add(upperBeak);
+
+                const beakTip = new THREE.Mesh(new THREE.ConeGeometry(0.55, 3.2, 16), sWhite);
+                beakTip.rotation.x = Math.PI / 2; beakTip.position.set(0, 1.9, 19.8); beakTip.scale.set(1.2, 0.7, 1.0);
+                beakGroup.add(beakTip);
+
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.85, 1.8), new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.05, metalness: 0.95 }));
+                visor.rotation.x = -0.58; visor.position.set(0, 3.9, 13.8); beakGroup.add(visor);
+
+                const coupler = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 1.8), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9 }));
+                coupler.position.set(0, 1.25, 18.8); beakGroup.add(coupler);
+                car.add(beakGroup);
+            }
+
+            car.position.z = carZ; train.add(car);
+            trainColliders.push({ halfW: 1.7, minZ: carZ - 13.5, maxZ: carZ + (isTail ? 19.5 : 13.5) });
+        }
+
+    } else if (type === 'ivolga') {
+        trainMaxSpeed = 150; trainAccel = 0.07;
+        document.getElementById('ui-train-name').innerText = "Иволга (ЭГЭ2Т МЦД)";
+        document.getElementById('ui-train-name').style.color = "#0ea5e9";
+
+        const ivWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2 });
+        const ivBlue = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.2 });
+        const ivNeon = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+        for (let i = 0; i < 3; i++) {
+            const isTail = (i === 0);
+            const car = new THREE.Group();
+            const carZ = - (i * 26.5);
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.3, 3.8, 25), ivWhite);
+            body.position.y = 2.8; car.add(body);
+
+            for (let side of [-1.67, 1.67]) {
+                const bStripe = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 25), ivBlue);
+                bStripe.position.set(side, 1.8, 0); car.add(bStripe);
+            }
+
+            const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.68, 1.68, 25, 20, 1, false, 0, Math.PI), ivBlue);
+            roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2; roof.position.y = 4.7; car.add(roof);
+
+            if (isTail) {
+                // Футуристичная маска Иволги со светящимся ободом
+                const nose = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.68, 6.0, 20, 1, false, 0, Math.PI), ivWhite);
+                nose.rotation.z = Math.PI / 2; nose.rotation.y = Math.PI / 2; nose.rotation.x = 0.25;
+                nose.position.set(0, 3.2, 14.0); car.add(nose);
+
+                const neonRing = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.08, 8, 24), ivNeon);
+                neonRing.rotation.y = Math.PI / 2; neonRing.position.set(0, 3.2, 16.5); car.add(neonRing);
+            }
+
+            car.position.z = carZ; train.add(car);
+            trainColliders.push({ halfW: 1.7, minZ: carZ - 13.0, maxZ: carZ + 16.5 });
+        }
+
+    } else if (type === 'lastochka') {
+        trainMaxSpeed = 160; trainAccel = 0.07;
+        document.getElementById('ui-train-name').innerText = "Ласточка (ЭС2Г)";
+        document.getElementById('ui-train-name').style.color = "#ef4444";
+
+        const lGrey = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.3 });
+        const lRed = new THREE.MeshStandardMaterial({ color: 0xdc2626 });
+
+        for (let i = 0; i < 3; i++) {
+            const isTail = (i === 0); const car = new THREE.Group(); const carZ = - (i * 26.5);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.3, 3.8, 25), lGrey);
+            body.position.y = 2.8; car.add(body);
+
+            for (let side of [-1.67, 1.67]) {
+                const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 25), lRed);
+                stripe.position.set(side, 1.8, 0); car.add(stripe);
+            }
+
+            const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.68, 1.68, 25, 20, 1, false, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+            roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2; roof.position.y = 4.7; car.add(roof);
+
+            if (isTail) {
+                const mask = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.68, 5.5, 20, 1, false, 0, Math.PI), lRed);
+                mask.rotation.z = Math.PI / 2; mask.rotation.y = Math.PI / 2; mask.rotation.x = 0.2;
+                mask.position.set(0, 3.2, 13.5); car.add(mask);
+            }
+            car.position.z = carZ; train.add(car);
+            trainColliders.push({ halfW: 1.7, minZ: carZ - 13.0, maxZ: carZ + 15.0 });
+        }
+
+    } else if (type === 'ep2d') {
+        trainMaxSpeed = 125; trainAccel = 0.055;
+        document.getElementById('ui-train-name').innerText = "ЭП2Д (ЦППК)";
+        document.getElementById('ui-train-name').style.color = "#facc15";
+
+        const epGraphite = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4 });
+        const epYellow = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
+
+        for (let i = 0; i < 3; i++) {
+            const isTail = (i === 0); const car = new THREE.Group(); const carZ = - (i * 26.0);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3.3, 3.8, 24.5), epGraphite);
+            body.position.y = 2.8; car.add(body);
+
+            for (let side of [-1.67, 1.67]) {
+                const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 24.5), epYellow);
+                stripe.position.set(side, 2.3, 0); car.add(stripe);
+            }
+
+            const roof = new THREE.Mesh(new THREE.CylinderGeometry(1.68, 1.68, 24.5, 16, 1, false, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+            roof.rotation.z = Math.PI / 2; roof.rotation.y = Math.PI / 2; roof.position.y = 4.7; car.add(roof);
+
+            if (isTail) {
+                const mask = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.6, 2.5), epYellow);
+                mask.position.set(0, 2.8, 13.2); car.add(mask);
+            }
+            car.position.z = carZ; train.add(car);
+            trainColliders.push({ halfW: 1.7, minZ: carZ - 12.5, maxZ: carZ + 14.5 });
+        }
+
+    } else if (type === 'freight') {
+        trainMaxSpeed = 95; trainAccel = 0.045;
+        document.getElementById('ui-train-name').innerText = "Тепловоз 2ТЭ116 (Фантомас)";
+        document.getElementById('ui-train-name').style.color = "#22c55e";
+
+        const locGreen = new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.5 }); // Советский темно-зеленый
+        const locoYellow = new THREE.MeshStandardMaterial({ color: 0xfacc15 });
+
+        // Головной тепловоз
+        const loco = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.8, 24), locGreen);
+        body.position.y = 2.8; loco.add(body);
+
+        // Буферный брус и огромная сцепка СА-3
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.2), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+        beam.position.set(0, 1.2, 12.4); loco.add(beam);
+
+        const cS = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.5, 1.8), new THREE.MeshStandardMaterial({ color: 0x111, metalness: 0.9 }));
+        cS.position.set(0, 1.25, 13.2); loco.add(cS);
+
+        loco.position.z = 0; train.add(loco);
+        trainColliders.push({ halfW: 1.75, minZ: -12, maxZ: 13.5 });
+
+        // 3 грузовых полувагона со щебнем
+        const rust = new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.9 });
+        for (let i = 1; i <= 3; i++) {
+            const wagon = new THREE.Group();
+            const wZ = - (i * 22);
+            const wBody = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.5, 20), rust);
+            wBody.position.y = 2.2; wagon.add(wBody);
+
+            const coal = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.8, 19), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+            coal.position.y = 3.2; wagon.add(coal);
+
+            wagon.position.z = wZ; train.add(wagon);
+            trainColliders.push({ halfW: 1.65, minZ: wZ - 10, maxZ: wZ + 10 });
+        }
+    }
+}
+
+document.querySelectorAll('.train-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.train-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTrainType = btn.getAttribute('data-type');
+        buildTrainModel(selectedTrainType);
+    });
+});
+
+train.position.set(0, 0, 5);
+buildTrainModel('sapsan');
+
+// --- 3RD PERSON ПЕРСОНАЖ ---
+const playerGroup = new THREE.Group();
+const torso = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.78, 0.38), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.5 }));
+torso.position.y = 0.88; torso.castShadow = true; playerGroup.add(torso);
+
+const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.58, 0.22), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }));
+backpack.position.set(0, 0.88, 0.28); playerGroup.add(backpack);
+
+const headGroup = new THREE.Group();
+const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 0.32), new THREE.MeshStandardMaterial({ color: 0xfcd34d }));
+headGroup.add(head);
+
+// GoPro на кепке в 3rd person
+const gopro3rd = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.1), new THREE.MeshStandardMaterial({ color: 0x111827 }));
+gopro3rd.position.set(0, 0.22, -0.16);
+gopro3rd.visible = false;
+headGroup.add(gopro3rd);
+
+const cap = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.09, 0.44), new THREE.MeshStandardMaterial({ color: 0xdc2626 }));
+cap.position.set(0, 0.18, 0.02); headGroup.add(cap);
+headGroup.position.set(0, 1.48, 0); playerGroup.add(headGroup);
+
+const leftArmGroup = new THREE.Group();
+const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.65, 0.16), sleeveMat);
+leftArm.position.y = -0.28; leftArmGroup.add(leftArm);
+const leftGlove = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), gloveBaseMat);
+leftGlove.position.y = -0.6; leftArmGroup.add(leftGlove);
+leftArmGroup.position.set(-0.4, 1.2, 0); playerGroup.add(leftArmGroup);
+
+const rightArmGroup = new THREE.Group();
+const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.65, 0.16), sleeveMat);
+rightArm.position.y = -0.28; rightArmGroup.add(rightArm);
+const rightGlove = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), gloveBaseMat);
+rightGlove.position.y = -0.6; rightArmGroup.add(rightGlove);
+rightArmGroup.position.set(0.4, 1.2, 0); playerGroup.add(rightArmGroup);
+
+const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+const shoeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc });
+const leftLegGroup = new THREE.Group();
+const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.62, 0.22), pantsMat);
+leftLeg.position.y = -0.3; leftLegGroup.add(leftLeg);
+const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.32), shoeMat);
+leftShoe.position.set(0, -0.58, -0.04); leftLegGroup.add(leftShoe);
+leftLegGroup.position.set(-0.16, 0.55, 0); playerGroup.add(leftLegGroup);
+
+const rightLegGroup = new THREE.Group();
+const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.62, 0.22), pantsMat);
+rightLeg.position.y = -0.3; rightLegGroup.add(rightLeg);
+const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.32), shoeMat);
+rightShoe.position.set(0, -0.58, -0.04); rightLegGroup.add(rightShoe);
+rightLegGroup.position.set(0.16, 0.55, 0); playerGroup.add(rightLegGroup);
+
+scene.add(playerGroup);
+
+// --- АУДИО ---
+let audioCtx = null;
+function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playTrainHorn() {
+    if (!audioCtx) return;
+    try {
+        const o1 = audioCtx.createOscillator(), o2 = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o1.type = 'sawtooth'; o2.type = 'sawtooth';
+        o1.frequency.setValueAtTime(selectedTrainType === 'freight' ? 180 : 440, audioCtx.currentTime);
+        o2.frequency.setValueAtTime(selectedTrainType === 'freight' ? 220 : 554, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.8);
+        o1.connect(g); o2.connect(g); g.connect(audioCtx.destination);
+        o1.start(); o2.start(); o1.stop(audioCtx.currentTime + 2.8); o2.stop(audioCtx.currentTime + 2.8);
+    } catch(e){}
+}
+function playCoinSound() {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(1318.51, audioCtx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+    } catch(e){}
+}
+function playBuySound() {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+    } catch(e){}
+}
+
+// --- УПРАВЛЕНИЕ ---
+let gameActive = false, isPointerLocked = false, isMouseDown = false;
+let yaw = 0, pitch = 0;
+const blocker = document.getElementById('blocker');
+const startBtn = document.getElementById('start-btn');
+let departureCountdown = 12, trainStarted = false, timerInterval = null;
+
+function startDepartureTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    departureCountdown = 12; trainStarted = false;
+    document.getElementById('timer-sec').innerText = departureCountdown;
+    document.getElementById('departure-timer').innerHTML = `⏰ ДО ОТПРАВЛЕНИЯ: <span id="timer-sec">${departureCountdown}</span> с`;
+    document.getElementById('departure-timer').style.borderColor = "#facc15";
+    document.getElementById('departure-timer').style.color = "#facc15";
+    document.getElementById('ui-status').innerText = "СТОИТ НА ПУТЯХ";
+    document.getElementById('ui-status').style.color = "#4ade80";
+
+    timerInterval = setInterval(() => {
+        if (!gameActive) return;
+        departureCountdown--;
+        const tSec = document.getElementById('timer-sec');
+        if (tSec) tSec.innerText = departureCountdown;
+        if (departureCountdown === 3) playTrainHorn();
+        if (departureCountdown <= 0) {
+            clearInterval(timerInterval);
+            trainStarted = true;
+            document.getElementById('departure-timer').innerText = "🚂 ПОЕЗД В ПУТИ!";
+            document.getElementById('departure-timer').style.borderColor = "#ef4444";
+            document.getElementById('departure-timer').style.color = "#ef4444";
+            document.getElementById('ui-status').innerText = "В ДВИЖЕНИИ";
+        }
+    }, 1000);
+}
+
+function startGame() {
+    initAudio(); blocker.style.display = 'none'; gameActive = true;
+    try { document.body.requestPointerLock(); } catch(e) {}
+    startDepartureTimer();
+}
+
+function resetGame() {
+    trainStarted = false; trainSpeedState.current = 0; train.position.set(0, 0, 5);
+    player.pos.set(6.5, 1.4, 25); player.velocity.set(0, 0, 0); player.onGround = true;
+    player.isHooked = false; player.hookOffset = null; player.grip = 100;
+
+    camera.fov = 75; camera.updateProjectionMatrix();
+    gameOver = false; trainFar = false; currentAvailableHook = null;
+
+    document.getElementById('ui-grip').innerText = "100%";
+    document.getElementById('ui-grip').style.color = "#22c55e";
+    document.getElementById('ui-speed').innerText = "0";
+    document.getElementById('warning-wind').style.display = 'none';
+    document.getElementById('action-prompt').style.display = 'none';
+    startDepartureTimer();
+}
+
+startBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+blocker.addEventListener('click', startGame);
+
+document.addEventListener('pointerlockchange', () => {
+    isPointerLocked = (document.pointerLockElement === document.body);
+});
+window.addEventListener('mousedown', () => { if (gameActive) isMouseDown = true; });
+window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+window.addEventListener('mousemove', (e) => {
+    if (!gameActive) return;
+    let mx = e.movementX ?? (e.mozMovementX || e.webkitMovementX || 0);
+    let my = e.movementY ?? (e.mozMovementY || e.webkitMovementY || 0);
+    if (isPointerLocked || isMouseDown) {
+        yaw -= mx * 0.0028; pitch -= my * 0.0028;
+        pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, pitch));
+    }
+});
+
+const keys = {};
+window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+
+    if (e.code === 'KeyV') {
+        player.thirdPerson = !player.thirdPerson;
+        document.getElementById('ui-camera').innerText = player.thirdPerson ? "3-е лицо [V]" : "1-е лицо [V]";
+        document.getElementById('crosshair').style.display = player.thirdPerson ? 'none' : 'block';
+    }
+
+    if (e.code === 'KeyE' && currentAvailableHook && !player.isHooked) {
+        player.isHooked = true;
+        player.hookOffset = { ...currentAvailableHook.offset };
+        player.hookSurface = currentAvailableHook.surface;
+        document.getElementById('ui-status').innerText = `ЗАЦЕП: ${currentAvailableHook.type.toUpperCase()}!`;
+        document.getElementById('ui-status').style.color = "#ef4444";
+    }
+
+    // ПОКУПКА В ЛАРЬКЕ: [F] Перцовка (300 ЗПР)
+    if (e.code === 'KeyF' && isNearKiosk && !hasPepperspray) {
+        if (zprScore >= 300) {
+            zprScore -= 300;
+            hasPepperspray = true;
+            document.getElementById('ui-zpr').innerText = zprScore;
+            document.getElementById('inv-badges').innerHTML += '<span>🌶️ ПЕРЦОВКА</span> ';
+            playBuySound();
+            showItemAlert("🌶️ ПЕРЦОВКА КУПЛЕНА! (ХВАТКА +100%)");
+        } else {
+            showItemAlert("❌ НЕ ХВАТАЕТ ЗПР НА ПЕРЦОВКУ (300)!");
+        }
+    }
+
+    // ПОКУПКА В ЛАРЬКЕ: [G] GoPro (150 ЗПР)
+    if (e.code === 'KeyG' && isNearKiosk && !hasGoPro) {
+        if (zprScore >= 150) {
+            zprScore -= 150;
+            hasGoPro = true;
+            document.getElementById('ui-zpr').innerText = zprScore;
+            document.getElementById('inv-badges').innerHTML += '<span>📹 GOPRO 4K</span> ';
+            document.getElementById('gopro-overlay').style.display = 'block';
+            gopro3rd.visible = true;
+            playBuySound();
+            showItemAlert("📹 GOPRO КУПЛЕНА! (ДОХОД ЗПР x2.5)");
+        } else {
+            showItemAlert("❌ НЕ ХВАТАЕТ ЗПР НА GOPRO (150)!");
+        }
+    }
+
+    if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
+        if (gameActive) resetGame();
+    }
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+// --- ПАРАМЕТРЫ СУЩНОСТЕЙ ---
+const player = {
+    pos: new THREE.Vector3(6.5, 1.4, 25),
+    velocity: new THREE.Vector3(),
+    onGround: true,
+    isHooked: false,
+    hookOffset: null,
+    hookSurface: 'roof',
+    grip: 100,
+    thirdPerson: false
+};
+
+const trainSpeedState = { current: 0 };
+let currentAvailableHook = null;
+let isNearKiosk = false;
+let gameOver = false, trainFar = false;
+let windTimer = 0, walkTime = 0;
+
+// --- ЦИКЛ ОБНОВЛЕНИЯ ---
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = Math.min(clock.getDelta(), 0.1);
+
+    if (gameActive && !gameOver) {
+        if (trainStarted) {
+            if (trainSpeedState.current < trainMaxSpeed) trainSpeedState.current += trainAccel;
+            train.position.z -= (trainSpeedState.current * delta);
+        }
+
+        // Вращение и сбор жетонов ЗПР
+        coinsList.forEach((coin) => {
+            coin.rotation.z += 2.0 * delta;
+            if (coin.visible && player.pos.distanceTo(coin.position) < 1.8) {
+                coin.visible = false;
+                zprScore += hasGoPro ? 50 : 25; // С GoPro больше очков!
+                document.getElementById('ui-zpr').innerText = zprScore;
+                playCoinSound();
+                showItemAlert(hasGoPro ? "+50 ЗПР (x2 GoPro!)" : "+25 ЗПР!");
+            }
+        });
+
+        // Доход ЗПР на ходу (с GoPro доход в 2.5 раза выше!)
+        if (player.isHooked && trainSpeedState.current > 25) {
+            const mult = hasGoPro ? 2.5 : 1.0;
+            zprPassiveTimer += delta * (trainSpeedState.current / 40) * mult;
+            if (zprPassiveTimer >= 1.0) {
+                zprScore += 1;
+                document.getElementById('ui-zpr').innerText = zprScore;
+                zprPassiveTimer = 0;
+            }
+        }
+
+        // Проверка близости к ларьку
+        const distToKiosk = player.pos.distanceTo(kioskGroup.position);
+        const shopUI = document.getElementById('shop-modal');
+        if (distToKiosk < 4.2) {
+            isNearKiosk = true;
+            shopUI.style.display = 'block';
+        } else {
+            isNearKiosk = false;
+            shopUI.style.display = 'none';
+        }
+
+        // Определение станции
+        const pz = player.pos.z;
+        const locUI = document.getElementById('location-hud');
+        if (pz > -350) locUI.innerText = "📍 СТАНЦИЯ: ВОКЗАЛ ЦЕНТРАЛЬНЫЙ";
+        else if (pz <= -350 && pz > -1400) locUI.innerText = "📍 ПЕРЕГОН: ПРИГОРОДНЫЙ ЛЕСОПАРК";
+        else if (pz <= -1400 && pz > -1800) locUI.innerText = "📍 СТАНЦИЯ: ПЛАТФОРМА РЕЧНАЯ";
+        else if (pz <= -1800 && pz > -3200) locUI.innerText = "📍 МОСТ ЧЕРЕЗ РЕКУ";
+        else if (pz <= -3200 && pz > -4000) locUI.innerText = "📍 ПЕРЕГОН: СКАЛИСТЫЙ КАНЬОН";
+        else if (pz <= -4000 && pz > -4400) locUI.innerText = "📍 СТАНЦИЯ: РАЗЪЕЗД ГОРНЫЙ";
+        else if (pz <= -4400 && pz > -6000) locUI.innerText = "📍 ОСВЕЩЕННЫЙ ТОННЕЛЬ";
+        else if (pz <= -6000 && pz > -7600) locUI.innerText = "📍 СКОРОСТНОЙ ПЕРЕГОН";
+        else locUI.innerText = "📍 СТАНЦИЯ: ТЕРМИНАЛ ДАЛЬНИЙ";
+
+        // Поведение игрока
+        if (!player.isHooked) {
+            const isSprint = keys['ShiftLeft'] || keys['ShiftRight'];
+            const moveSpeed = isSprint ? 14.5 : 7.0;
+            const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+            const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+            const dir = new THREE.Vector3();
+            if (keys['KeyW']) dir.add(forward);
+            if (keys['KeyS']) dir.sub(forward);
+            if (keys['KeyA']) dir.sub(side);
+            if (keys['KeyD']) dir.add(side);
+            dir.normalize();
+
+            player.pos.x += dir.x * moveSpeed * delta;
+            player.pos.z += dir.z * moveSpeed * delta;
+
+            if (dir.lengthSq() > 0.01) {
+                walkTime += delta * (isSprint ? 16 : 9);
+                leftLegGroup.rotation.x = Math.sin(walkTime) * 0.75;
+                rightLegGroup.rotation.x = -Math.sin(walkTime) * 0.75;
+                leftArmGroup.rotation.x = -Math.sin(walkTime) * 0.7;
+                rightArmGroup.rotation.x = Math.sin(walkTime) * 0.7;
+
+                leftFpsArm.position.y = -0.25 + Math.sin(walkTime) * 0.03;
+                rightFpsArm.position.y = -0.25 - Math.sin(walkTime) * 0.03;
+            } else {
+                leftLegGroup.rotation.x = 0; rightLegGroup.rotation.x = 0;
+                leftArmGroup.rotation.x = 0; rightArmGroup.rotation.x = 0;
+                leftFpsArm.position.set(-0.24, -0.25, -0.45);
+                rightFpsArm.position.set(0.24, -0.25, -0.45);
+            }
+
+            if (keys['Space'] && player.onGround) {
+                player.velocity.y = 7.0; player.onGround = false;
+            }
+            player.velocity.y -= 18 * delta;
+            player.pos.y += player.velocity.y * delta;
+
+            // Проверка платформ станций
+            let onAnyStation = false;
+            stations.forEach((st) => {
+                if (player.pos.x >= 3.2 && player.pos.x <= 11.5 && player.pos.z <= st.z + st.len/2 && player.pos.z >= st.z - st.len/2) {
+                    onAnyStation = true;
+                }
+            });
+            let groundY = onAnyStation ? 1.4 : 0;
+
+            let onTrainRoof = false;
+            for (let col of trainColliders) {
+                const zMin = train.position.z + col.minZ, zMax = train.position.z + col.maxZ;
+                if (player.pos.z >= zMin && player.pos.z <= zMax && Math.abs(player.pos.x) <= col.halfW) {
+                    if (player.pos.y >= 4.5) { groundY = 4.75; onTrainRoof = true; }
+                }
+            }
+            if (player.pos.y <= groundY) { player.pos.y = groundY; player.velocity.y = 0; player.onGround = true; }
+
+            // Коллизия вагонов
+            if (!onTrainRoof) {
+                const pRadius = 0.45;
+                for (let col of trainColliders) {
+                    const zMin = train.position.z + col.minZ, zMax = train.position.z + col.maxZ;
+                    if (player.pos.z >= zMin - pRadius && player.pos.z <= zMax + pRadius) {
+                        const minX = -col.halfW - pRadius, maxX = col.halfW + pRadius;
+                        if (player.pos.x > minX && player.pos.x < maxX) player.pos.x = player.pos.x >= 0 ? maxX : minX;
+                    }
+                }
+            }
+
+            // Поиск точек зацепа
+            currentAvailableHook = null;
+            const promptUI = document.getElementById('action-prompt');
+
+            for (let col of trainColliders) {
+                const zMin = train.position.z + col.minZ, zMax = train.position.z + col.maxZ;
+                if (player.pos.z >= zMin - 2.5 && player.pos.z <= zMax + 2.5) {
+                    const distToSide = Math.abs(player.pos.x) - col.halfW;
+                    if (player.pos.y >= 4.4 && Math.abs(player.pos.x) <= col.halfW + 0.6) {
+                        currentAvailableHook = {
+                            type: "Крыша вагона", surface: 'roof',
+                            offset: { x: Math.max(-1.1, Math.min(1.1, player.pos.x)), y: 4.85, z: player.pos.z - train.position.z }
+                        };
+                        break;
+                    }
+                    if (distToSide >= -0.2 && distToSide <= 1.4 && player.pos.y >= 1.2 && player.pos.y < 4.4) {
+                        const isRight = player.pos.x >= 0;
+                        currentAvailableHook = {
+                            type: "Стенка вагона / молдинг", surface: isRight ? 'wall_right' : 'wall_left',
+                            offset: {
+                                x: (isRight ? 1 : -1) * (col.halfW + 0.15),
+                                y: Math.max(1.5, Math.min(3.8, player.pos.y)),
+                                z: player.pos.z - train.position.z
+                            }
+                        };
+                        break;
+                    }
+                }
+            }
+
+            if (currentAvailableHook) {
+                promptUI.style.display = 'block'; promptUI.innerText = `[E] ЗАЦЕПИТЬСЯ: ${currentAvailableHook.type.toUpperCase()}`;
+            } else {
+                promptUI.style.display = 'none';
+            }
+
+            if (train.position.z - 80 < player.pos.z - 40) {
+                trainFar = true;
+                document.getElementById('ui-status').innerText = "ПОЕЗД УЕХАЛ БЕЗ ВАС! (Нажмите R)";
+                document.getElementById('ui-status').style.color = "#ef4444";
+            }
+
+        } else {
+            // В ЗАЦЕПЕ (ЛАЗАНИЕ)
+            document.getElementById('action-prompt').style.display = 'none';
+            const climbSpeed = 3.2;
+
+            if (player.hookSurface === 'roof') {
+                if (keys['KeyW']) player.hookOffset.z -= climbSpeed * delta;
+                if (keys['KeyS']) player.hookOffset.z += climbSpeed * delta;
+                if (keys['KeyA']) player.hookOffset.x -= climbSpeed * delta;
+                if (keys['KeyD']) player.hookOffset.x += climbSpeed * delta;
+
+                if (player.hookOffset.x > 1.35) { player.hookSurface = 'wall_right'; player.hookOffset.x = 1.85; player.hookOffset.y = 4.4; }
+                else if (player.hookOffset.x < -1.35) { player.hookSurface = 'wall_left'; player.hookOffset.x = -1.85; player.hookOffset.y = 4.4; }
+                else player.hookOffset.y = 4.85 - (player.hookOffset.x * player.hookOffset.x) * 0.12;
+
+                leftFpsArm.position.set(-0.2, -0.15, -0.38); leftFpsArm.rotation.x = -0.3;
+                rightFpsArm.position.set(0.2, -0.15, -0.38); rightFpsArm.rotation.x = -0.3;
+                torso.rotation.x = 0.5; leftArmGroup.rotation.x = -1.4; rightArmGroup.rotation.x = -1.4;
+            } else {
+                if (keys['KeyW']) player.hookOffset.y += climbSpeed * delta;
+                if (keys['KeyS']) player.hookOffset.y -= climbSpeed * delta;
+                if (keys['KeyA']) player.hookOffset.z += climbSpeed * delta;
+                if (keys['KeyD']) player.hookOffset.z -= climbSpeed * delta;
+
+                if (player.hookOffset.y >= 4.65) {
+                    player.hookSurface = 'roof';
+                    player.hookOffset.x = player.hookSurface === 'wall_right' ? 1.1 : -1.1;
+                    player.hookOffset.y = 4.85;
+                }
+
+                leftFpsArm.position.set(-0.18, -0.05, -0.35); leftFpsArm.rotation.x = -0.8;
+                rightFpsArm.position.set(0.18, -0.05, -0.35); rightFpsArm.rotation.x = -0.8;
+                torso.rotation.x = 0; leftArmGroup.rotation.x = -2.8; rightArmGroup.rotation.x = -2.8;
+            }
+
+            player.hookOffset.z = Math.max(-75.0, Math.min(19.2, player.hookOffset.z));
+            player.pos.set(train.position.x + player.hookOffset.x, player.hookOffset.y, train.position.z + player.hookOffset.z);
+
+            const targetFOV = (hasGoPro ? 85 : 75) + (trainSpeedState.current / trainMaxSpeed) * 22;
+            camera.fov = THREE.MathUtils.lerp(camera.fov, targetFOV, 0.05);
+            camera.updateProjectionMatrix();
+
+            // Ветер (перцовка снижает расход сил вдвое!)
+            if (trainSpeedState.current > 45) {
+                windTimer += delta * 5;
+                const warn = document.getElementById('warning-wind');
+                if (Math.sin(windTimer) > 0.3) {
+                    warn.style.display = 'block';
+                    if (!keys['Space']) {
+                        const drainMod = hasPepperspray ? 0.45 : 1.0;
+                        player.grip -= delta * (30 + (trainSpeedState.current / trainMaxSpeed) * 45) * drainMod;
+                    }
+                    leftFpsArm.position.x += (Math.random() - 0.5) * 0.02;
+                    rightFpsArm.position.x += (Math.random() - 0.5) * 0.02;
+                } else {
+                    warn.style.display = 'none';
+                    if (keys['Space']) player.grip = Math.min(100, player.grip + delta * 25);
+                }
+
+                const shake = (trainSpeedState.current / trainMaxSpeed) * 0.06;
+                player.pos.x += (Math.random() - 0.5) * shake;
+                player.pos.y += (Math.random() - 0.5) * shake;
+            }
+
+            if (player.grip <= 0) {
+                player.isHooked = false; gameOver = true;
+                document.getElementById('ui-status').innerText = "ВЫ НЕ УДЕРЖАЛИСЬ! (Нажмите R)";
+                document.getElementById('warning-wind').style.display = 'none';
+            }
+
+            document.getElementById('ui-grip').innerText = Math.max(0, Math.round(player.grip)) + '%';
+            document.getElementById('ui-grip').style.color = player.grip > 30 ? '#22c55e' : '#ef4444';
+        }
+
+        document.getElementById('ui-speed').innerText = Math.round(trainSpeedState.current);
+    }
+
+    // Камера и персонаж
+    playerGroup.position.copy(player.pos);
+    if (player.isHooked && (player.hookSurface === 'wall_right' || player.hookSurface === 'wall_left')) {
+        playerGroup.rotation.y = player.hookSurface === 'wall_right' ? -Math.PI / 2 : Math.PI / 2;
+    } else {
+        playerGroup.rotation.y = yaw;
+    }
+
+    if (!player.thirdPerson) {
+        playerGroup.visible = false;
+        fpsArmsGroup.visible = true;
+        camera.position.set(player.pos.x, player.pos.y + 1.55, player.pos.z);
+        const look = new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+        camera.lookAt(camera.position.clone().add(look));
+    } else {
+        playerGroup.visible = true;
+        fpsArmsGroup.visible = false;
+        const d = 3.9;
+        const cx = player.pos.x + Math.sin(yaw) * d * Math.cos(pitch);
+        const cy = player.pos.y + 1.9 + Math.sin(pitch) * d;
+        const cz = player.pos.z + Math.cos(yaw) * d * Math.cos(pitch);
+        camera.position.set(cx, cy, cz);
+        camera.lookAt(player.pos.x, player.pos.y + 1.2, player.pos.z);
+    }
+
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
